@@ -1,136 +1,149 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Magic Eraser - No Fail</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Magic Eraser - Real AI</title>
 <style>
-:root{color-scheme:dark;--bg:#090b13;--line:#272d40;--text:#f6f7ff;--muted:#9ba4bb}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif}
-header{height:60px;border-bottom:1px solid #ffffff12;display:flex;align-items:center;padding:0 5%}
-.brand{font-weight:800;font-size:20px}.brand span{color:#c4a7ff}
-main{max-width:700px;margin:auto;padding:15px}
-.workspace{background:#101421;border:1px solid var(--line);border-radius:18px;overflow:hidden}
-.toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:12px;border-bottom:1px solid var(--line);align-items:center}
-.btn{border:1px solid #353c51;background:#1a2030;color:#fff;padding:10px 14px;border-radius:10px;font-weight:700;font-size:13px}
-.primary{background:linear-gradient(110deg,#7c3aed,#a855f7);border:0}
-.stage{min-height:300px;padding:10px;display:flex;align-items:center;justify-content:center;background:#0c101a}
-#empty{text-align:center;padding:30px}#editor{display:none;position:relative;width:100%;line-height:0;touch-action:none}
-#photo{width:100%;height:auto;border-radius:8px;display:block}
-#mask{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
-.bottom{padding:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;border-top:1px solid var(--line)}
-#status{font-size:12px;color:var(--muted)}#busy{display:none;padding:10px;text-align:center;color:#a78bfa;font-size:13px}
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
+body{background:#0a0a0a;color:#fff}
+.box{max-width:750px;margin:auto;padding:14px}
+h1{text-align:center;padding:16px;font-size:24px}
+h1 span{background:linear-gradient(90deg,#a78bfa,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.card{background:#171717;border:1px solid #2a2a2a;border-radius:18px;padding:16px}
+.up{border:2px dashed #444;border-radius:14px;padding:36px;text-align:center;background:#111}
+.btn{width:100%;padding:14px;border-radius:12px;border:0;font-weight:800;font-size:16px;cursor:pointer;margin-top:12px}
+.b1{background:#fff;color:#000}
+.b2{background:linear-gradient(90deg,#8b5cf6,#ec4899);color:#fff}
+.b3{background:#22c55e;color:#000}
+#wrap{position:relative;display:none;margin-top:14px;background:#000;border-radius:14px;overflow:hidden}
+canvas{display:block;width:100%}
+#draw{position:absolute;top:0;left:0;touch-action:none}
+.tools{display:none;justify-content:space-between;align-items:center;margin-top:10px}
+#res{display:none;margin-top:16px}
+#res img{width:100%;border-radius:12px;margin-top:8px}
+.small{padding:8px 14px;border-radius:8px;background:#2a2a2a;color:#fff;border:1px solid #333;font-size:13px}
 </style>
 </head>
 <body>
-<header><div class="brand">✦ MAGIC<span>ERASER</span></div></header>
-<main>
-<div class="workspace">
-<div class="toolbar">
-<button class="btn primary" id="uploadBtn">＋ Upload</button><input type="file" id="file" accept="image/*" hidden>
-<span style="font-size:12px;color:var(--muted)">Brush</span><input type="range" id="size" min="15" max="90" value="45" style="width:120px"><span id="sizeText" style="font-size:12px">45 px</span>
-<button class="btn" id="undoBtn" disabled>↶ Undo</button><button class="btn" id="clearBtn" disabled>Clear</button>
+<div class="box">
+<h1><span>Magic Eraser</span> - AI</h1>
+<div class="card">
+<div class="up" id="up">
+<p>📸 Photo Upload Karo</p>
+<label class="btn b1" for="f" style="display:inline-block;margin-top:12px;width:auto;padding:12px 22px">Upload Photo</label>
+<input type="file" id="f" accept="image/*" hidden>
 </div>
-<div class="stage">
-<div id="empty"><h3>Photo daalo</h3><p style="color:var(--muted);font-size:13px">Pink se hatana hai usko paint karo</p><button class="btn primary" id="startBtn">Choose photo</button></div>
-<div id="editor"><canvas id="photo"></canvas><canvas id="mask"></canvas></div>
+
+<div id="wrap">
+<canvas id="main"></canvas>
+<canvas id="draw"></canvas>
 </div>
-<div id="busy">Cleaning...</div>
-<div class="bottom"><div id="status">Ready. Upload karo.</div><button class="btn primary" id="removeBtn" disabled>✦ Remove object</button><button class="btn primary" id="downloadBtn" hidden>↓ Download</button></div>
+
+<div class="tools" id="tools">
+<div>
+<button class="small" onclick="clearM()">Clear</button>
+<span style="font-size:12px;color:#aaa;margin-left:6px">🔴 Red se ghanta mark karo</span>
 </div>
-</main>
+<input type="range" id="bs" min="10" max="70" value="30">
+</div>
+
+<button class="btn b2" id="go" style="display:none" onclick="send()">✨ REMOVE OBJECT - AI</button>
+
+<div id="res">
+<p style="color:#22c55e;font-size:14px">✅ Object Removed - No Blur</p>
+<img id="out">
+<a id="dl" class="btn b3" style="display:block;text-align:center;text-decoration:none" download="erased.png">⬇️ Download HD</a>
+<button class="btn small" style="width:100%;margin-top:8px" onclick="location.reload()">🔄 New Photo</button>
+</div>
+
+<p id="st" style="text-align:center;color:#a78bfa;font-size:12px;margin-top:10px"></p>
+</div>
+</div>
+
 <script>
-const $=id=>document.getElementById(id);
-const photo=$("photo"), mask=$("mask");
-const pctx=photo.getContext("2d",{willReadFrequently:true});
-const mctx=mask.getContext("2d",{willReadFrequently:true});
-let original=null, history=[], drawing=false, last=null, resultCanvas=null;
+let main=document.getElementById('main'), draw=document.getElementById('draw');
+let m=main.getContext('2d'), d=draw.getContext('2d');
+let isD=false;
 
-function setStatus(t){$("status").textContent=t}
-function setBusy(on,msg){$("busy").style.display=on?"block":"none"; if(msg) $("busy").textContent=msg;}
-function saveHistory(){if(history.length>10) history.shift(); history.push(mctx.getImageData(0,0,mask.width,mask.height)); $("undoBtn").disabled=false;}
-function clearMarks(){mctx.clearRect(0,0,mask.width,mask.height); history=[]; $("undoBtn").disabled=true; resultCanvas=null; $("downloadBtn").hidden=true; if(original) pctx.putImageData(original,0,0); setStatus("Clear ho gaya.");}
-
-function loadImage(file){
-  const url=URL.createObjectURL(file), img=new Image();
-  img.onload=()=>{
-    const MAX=1000; let w=img.naturalWidth, h=img.naturalHeight;
-    if(w>MAX||h>MAX){ const r=Math.min(MAX/w,MAX/h); w=Math.round(w*r); h=Math.round(h*r); }
-    photo.width=w; photo.height=h; mask.width=w; mask.height=h;
-    pctx.drawImage(img,0,0,w,h); original=pctx.getImageData(0,0,w,h);
-    mctx.clearRect(0,0,w,h); history=[]; resultCanvas=null;
-    $("downloadBtn").hidden=true; $("empty").style.display="none"; $("editor").style.display="block";
-    $("undoBtn").disabled=true; $("clearBtn").disabled=false; $("removeBtn").disabled=false;
-    setStatus(`Loaded. Brush 45 rakho, scooter ko pura cover karo.`);
-    URL.revokeObjectURL(url);
-  }; img.src=url;
-}
-$("uploadBtn").onclick=$("startBtn").onclick=()=>$("file").click();
-$("file").onchange=e=>{if(e.target.files[0]) loadImage(e.target.files[0]); e.target.value="";};
-$("size").oninput=e=>{$("sizeText").textContent=e.target.value+" px";};
-function point(e){const r=mask.getBoundingClientRect(); return {x:(e.clientX-r.left)*mask.width/r.width, y:(e.clientY-r.top)*mask.height/r.height};}
-function stroke(a,b){
-  const r=mask.getBoundingClientRect(); const scale=mask.width/r.width; const rad=Number($("size").value)*scale/2;
-  mctx.save(); mctx.strokeStyle="rgba(255,30,115,0.75)"; mctx.fillStyle="rgba(255,30,115,0.75)";
-  mctx.lineWidth=rad*2; mctx.lineCap="round"; mctx.lineJoin="round";
-  mctx.beginPath(); mctx.moveTo(a.x,a.y); mctx.lineTo(b.x,b.y); mctx.stroke();
-  mctx.beginPath(); mctx.arc(b.x,b.y,rad,0,Math.PI*2); mctx.fill(); mctx.restore();
-}
-mask.addEventListener("pointerdown",e=>{if(!original) return; e.preventDefault(); saveHistory(); drawing=true; last=point(e); stroke(last,last); mask.setPointerCapture(e.pointerId);});
-mask.addEventListener("pointermove",e=>{if(!drawing) return; e.preventDefault(); const p=point(e); stroke(last,p); last=p;});
-mask.addEventListener("pointerup",()=>{drawing=false;}); mask.addEventListener("pointercancel",()=>{drawing=false;});
-$("undoBtn").onclick=()=>{if(!history.length) return; mctx.putImageData(history.pop(),0,0); if(!history.length) $("undoBtn").disabled=true; resultCanvas=null; $("downloadBtn").hidden=true; pctx.putImageData(original,0,0);};
-$("clearBtn").onclick=clearMarks;
-
-// PURE JS INPAINT - NO OPENCV NEEDED
-function jsInpaint(){
-  const w=photo.width, h=photo.height;
-  const img=pctx.getImageData(0,0,w,h);
-  const maskData=mctx.getImageData(0,0,w,h);
-  const mask=new Uint8Array(w*h);
-  for(let i=0;i<w*h;i++){ if(maskData.data[i*4+3]>20) mask[i]=1; }
-
-  // dilate mask a little
-  const dilated=new Uint8Array(mask);
-  for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
-    const idx=y*w+x; if(mask[idx]){ for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++) dilated[(y+dy)*w+(x+dx)]=1; }
-  }
-
-  const data=img.data;
-  // iterative fill
-  for(let iter=0;iter<25;iter++){
-    let changed=false;
-    for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
-      const idx=y*w+x; if(!dilated[idx]) continue;
-      let r=0,g=0,b=0,c=0;
-      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
-        if(dx==0&&dy==0) continue;
-        const n=(y+dy)*w+(x+dx);
-        if(!dilated[n]){ const p=n*4; r+=data[p]; g+=data[p+1]; b+=data[p+2]; c++; }
-      }
-      if(c>0){ const p=idx*4; data[p]=r/c; data[p+1]=g/c; data[p+2]=b/c; dilated[idx]=0; changed=true; }
-    }
-    if(!changed) break;
-  }
-  pctx.putImageData(img,0,0);
-  resultCanvas=document.createElement("canvas"); resultCanvas.width=w; resultCanvas.height=h;
-  resultCanvas.getContext("2d").putImageData(img,0,0);
-}
-
-$("removeBtn").onclick=async()=>{
-  if(!original) return; if(!history.length){setStatus("Pehle pink se mark karo."); return;}
-  setBusy(true,"Cleaning - thoda wait karo..."); $("removeBtn").disabled=true;
-  await new Promise(r=>setTimeout(r,50));
-  try{
-    jsInpaint();
-    $("downloadBtn").hidden=false; setStatus("Ho gaya! Download karo. Agar thoda blur lage to 2 baar Remove dabao.");
-  }catch(e){console.error(e); setStatus("Error: "+e.message);}
-  finally{setBusy(false); $("removeBtn").disabled=false;}
+document.getElementById('f').onchange=e=>{
+ const file=e.target.files[0]; if(!file) return;
+ const img=new Image();
+ img.onload=()=>{
+  const MAX=1000;
+  let w=img.width,h=img.height;
+  if(w>MAX){h=h*MAX/w; w=MAX}
+  main.width=w; main.height=h; draw.width=w; draw.height=h;
+  m.drawImage(img,0,0,w,h);
+  document.getElementById('wrap').style.display='block';
+  document.getElementById('tools').style.display='flex';
+  document.getElementById('go').style.display='block';
+  document.getElementById('up').style.display='none';
+  document.getElementById('st').innerText='Red se object mark karo';
+ };
+ img.src=URL.createObjectURL(file);
 };
-$("downloadBtn").onclick=()=>{
-  if(!resultCanvas) return;
-  resultCanvas.toBlob(b=>{const u=URL.createObjectURL(b); const a=document.createElement("a"); a.href=u; a.download="erased.png"; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1500);},"image/png",0.92);
-};
+
+function pos(e){
+ const r=draw.getBoundingClientRect();
+ const t=e.touches?e.touches[0]:e;
+ return {x:(t.clientX-r.left)*draw.width/r.width, y:(t.clientY-r.top)*draw.height/r.height}
+}
+draw.addEventListener('pointerdown',e=>{isD=true; d.beginPath(); const p=pos(e); d.moveTo(p.x,p.y)});
+draw.addEventListener('pointermove',e=>{
+ if(!isD) return;
+ const p=pos(e);
+ d.lineWidth=document.getElementById('bs').value;
+ d.lineCap='round'; d.strokeStyle='rgba(255,0,60,0.85)'; d.lineTo(p.x,p.y); d.stroke();
+});
+window.addEventListener('pointerup',()=>isD=false);
+
+function clearM(){d.clearRect(0,0,draw.width,draw.height)}
+
+async function send(){
+ const btn=document.getElementById('go');
+ btn.innerText='AI hata raha hai... 5 sec';
+ document.getElementById('st').innerText='AI background bana raha hai, blur nahi aayega...';
+
+ // mask banao
+ let maskCanvas=document.createElement('canvas');
+ maskCanvas.width=main.width; maskCanvas.height=main.height;
+ let mctx=maskCanvas.getContext('2d');
+ mctx.fillStyle='black'; mctx.fillRect(0,0,maskCanvas.width,maskCanvas.height);
+ mctx.drawImage(draw,0,0);
+ // white mask for clipdrop
+ let temp=mctx.getImageData(0,0,maskCanvas.width,maskCanvas.height);
+ for(let i=0;i<temp.data.length;i+=4){
+  if(temp.data[i]>50){temp.data[i]=255;temp.data[i+1]=255;temp.data[i+2]=255}
+  else{temp.data[i]=0;temp.data[i+1]=0;temp.data[i+2]=0}
+  temp.data[i+3]=255;
+ }
+ mctx.putImageData(temp,0,0);
+
+ const imgBlob = await new Promise(r=>main.toBlob(r,'image/png'));
+ const maskBlob = await new Promise(r=>maskCanvas.toBlob(r,'image/png'));
+
+ let fd=new FormData();
+ fd.append('image_file', imgBlob, 'image.png');
+ fd.append('mask_file', maskBlob, 'mask.png');
+
+ try{
+  const res=await fetch('/api/cleanup',{method:'POST',body:fd});
+  if(!res.ok) throw new Error('API error');
+  const blob=await res.blob();
+  const url=URL.createObjectURL(blob);
+  document.getElementById('out').src=url;
+  document.getElementById('dl').href=url;
+  document.getElementById('res').style.display='block';
+  document.getElementById('st').innerText='Ho gaya!';
+  btn.innerText='✨ REMOVE OBJECT - AI';
+  document.getElementById('res').scrollIntoView({behavior:'smooth'});
+ }catch(err){
+  document.getElementById('st').innerText='Error: Vercel me API file nahi lagi. Dusra code daalo.';
+  btn.innerText='✨ REMOVE OBJECT - AI';
+  alert('Backend wala cleanup.js file abhi nahi daala hai. Woh daalne ke baad hi chalega.');
+ }
+}
 </script>
 </body>
 </html>
