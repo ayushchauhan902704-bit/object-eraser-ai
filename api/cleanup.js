@@ -1,14 +1,15 @@
-export const config = { api: { bodyParser: true } };
+export const config = { api: { bodyParser: { sizeLimit: '10mb' } } };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({error:'no'});
+  if (req.method!== 'POST') return res.status(405).json({error:'Only POST'});
 
   try {
-    const { image, mask } = req.body; // base64
-
+    const { image, mask } = req.body;
     if (!image) return res.status(400).json({error:'image missing'});
 
-    // HuggingFace Inpainting Model - FREE
+    const cleanImage = image.includes(',')? image.split(',')[1] : image;
+    const cleanMask = mask.includes(',')? mask.split(',')[1] : mask;
+
     const hfRes = await fetch('https://api-inference.huggingface.co/models/runwayml/stable-diffusion-inpainting', {
       method: 'POST',
       headers: {
@@ -16,9 +17,9 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        inputs: `remove object, clean background, seamless`,
-        image: image,
-        mask_image: mask
+        inputs: "remove object, clean background, seamless, high quality",
+        image: cleanImage,
+        mask_image: cleanMask
       })
     });
 
