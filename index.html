@@ -3,45 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Magic Eraser - Final</title>
-<script>
-let cvLoaded=false;
-window.Module={onRuntimeInitialized(){cvLoaded=true;}};
-</script>
-<script src="https://docs.opencv.org/4.8.0/opencv.js"></script>
+<title>Magic Eraser - No Fail</title>
 <style>
 :root{color-scheme:dark;--bg:#090b13;--line:#272d40;--text:#f6f7ff;--muted:#9ba4bb}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif}
-header{height:60px;border-bottom:1px solid #ffffff12;display:flex;align-items:center;justify-content:space-between;padding:0 5%}
+header{height:60px;border-bottom:1px solid #ffffff12;display:flex;align-items:center;padding:0 5%}
 .brand{font-weight:800;font-size:20px}.brand span{color:#c4a7ff}
-main{max-width:700px;margin:auto;padding:20px}
+main{max-width:700px;margin:auto;padding:15px}
 .workspace{background:#101421;border:1px solid var(--line);border-radius:18px;overflow:hidden}
-.toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:12px;border-bottom:1px solid var(--line)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:12px;border-bottom:1px solid var(--line);align-items:center}
 .btn{border:1px solid #353c51;background:#1a2030;color:#fff;padding:10px 14px;border-radius:10px;font-weight:700;font-size:13px}
 .primary{background:linear-gradient(110deg,#7c3aed,#a855f7);border:0}
-.stage{min-height:250px;padding:12px;display:flex;align-items:center;justify-content:center;background:#0c101a}
+.stage{min-height:300px;padding:10px;display:flex;align-items:center;justify-content:center;background:#0c101a}
 #empty{text-align:center;padding:30px}#editor{display:none;position:relative;width:100%;line-height:0;touch-action:none}
 #photo{width:100%;height:auto;border-radius:8px;display:block}
-#mask{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+#mask{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
 .bottom{padding:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;border-top:1px solid var(--line)}
-#status{font-size:12px;color:var(--muted)}#busy{display:none;padding:10px;text-align:center;color:#d8ccff;font-size:13px}
+#status{font-size:12px;color:var(--muted)}#busy{display:none;padding:10px;text-align:center;color:#a78bfa;font-size:13px}
 </style>
 </head>
 <body>
-<header><div class="brand">✦ MAGIC<span>ERASER</span></div><div style="font-size:11px;color:#c4a7ff;border:1px solid #343047;padding:6px 10px;border-radius:20px">FREE</div></header>
+<header><div class="brand">✦ MAGIC<span>ERASER</span></div></header>
 <main>
 <div class="workspace">
 <div class="toolbar">
 <button class="btn primary" id="uploadBtn">＋ Upload</button><input type="file" id="file" accept="image/*" hidden>
-<span style="font-size:12px;color:var(--muted)">Brush</span><input type="range" id="size" min="10" max="80" value="35" style="width:100px">
-<span id="sizeText" style="font-size:12px">35 px</span>
+<span style="font-size:12px;color:var(--muted)">Brush</span><input type="range" id="size" min="15" max="90" value="45" style="width:120px"><span id="sizeText" style="font-size:12px">45 px</span>
 <button class="btn" id="undoBtn" disabled>↶ Undo</button><button class="btn" id="clearBtn" disabled>Clear</button>
 </div>
 <div class="stage">
-<div id="empty"><h3>Photo upload karo</h3><p style="color:var(--muted);font-size:13px">Fir pink se object ko mark karo</p><button class="btn primary" id="startBtn">Choose photo</button></div>
+<div id="empty"><h3>Photo daalo</h3><p style="color:var(--muted);font-size:13px">Pink se hatana hai usko paint karo</p><button class="btn primary" id="startBtn">Choose photo</button></div>
 <div id="editor"><canvas id="photo"></canvas><canvas id="mask"></canvas></div>
 </div>
-<div id="busy">Loading...</div>
+<div id="busy">Cleaning...</div>
 <div class="bottom"><div id="status">Ready. Upload karo.</div><button class="btn primary" id="removeBtn" disabled>✦ Remove object</button><button class="btn primary" id="downloadBtn" hidden>↓ Download</button></div>
 </div>
 </main>
@@ -55,7 +49,7 @@ let original=null, history=[], drawing=false, last=null, resultCanvas=null;
 function setStatus(t){$("status").textContent=t}
 function setBusy(on,msg){$("busy").style.display=on?"block":"none"; if(msg) $("busy").textContent=msg;}
 function saveHistory(){if(history.length>10) history.shift(); history.push(mctx.getImageData(0,0,mask.width,mask.height)); $("undoBtn").disabled=false;}
-function clearMarks(){mctx.clearRect(0,0,mask.width,mask.height); history=[]; $("undoBtn").disabled=true; resultCanvas=null; $("downloadBtn").hidden=true; if(original) pctx.putImageData(original,0,0); setStatus("Clear ho gaya. Fir se mark karo.");}
+function clearMarks(){mctx.clearRect(0,0,mask.width,mask.height); history=[]; $("undoBtn").disabled=true; resultCanvas=null; $("downloadBtn").hidden=true; if(original) pctx.putImageData(original,0,0); setStatus("Clear ho gaya.");}
 
 function loadImage(file){
   const url=URL.createObjectURL(file), img=new Image();
@@ -67,10 +61,9 @@ function loadImage(file){
     mctx.clearRect(0,0,w,h); history=[]; resultCanvas=null;
     $("downloadBtn").hidden=true; $("empty").style.display="none"; $("editor").style.display="block";
     $("undoBtn").disabled=true; $("clearBtn").disabled=false; $("removeBtn").disabled=false;
-    setStatus(`Loaded ${w}x${h}. Ab pink se mark karo.`);
+    setStatus(`Loaded. Brush 45 rakho, scooter ko pura cover karo.`);
     URL.revokeObjectURL(url);
-  };
-  img.src=url;
+  }; img.src=url;
 }
 $("uploadBtn").onclick=$("startBtn").onclick=()=>$("file").click();
 $("file").onchange=e=>{if(e.target.files[0]) loadImage(e.target.files[0]); e.target.value="";};
@@ -78,7 +71,7 @@ $("size").oninput=e=>{$("sizeText").textContent=e.target.value+" px";};
 function point(e){const r=mask.getBoundingClientRect(); return {x:(e.clientX-r.left)*mask.width/r.width, y:(e.clientY-r.top)*mask.height/r.height};}
 function stroke(a,b){
   const r=mask.getBoundingClientRect(); const scale=mask.width/r.width; const rad=Number($("size").value)*scale/2;
-  mctx.save(); mctx.strokeStyle="rgba(255,30,115,0.65)"; mctx.fillStyle="rgba(255,30,115,0.65)";
+  mctx.save(); mctx.strokeStyle="rgba(255,30,115,0.75)"; mctx.fillStyle="rgba(255,30,115,0.75)";
   mctx.lineWidth=rad*2; mctx.lineCap="round"; mctx.lineJoin="round";
   mctx.beginPath(); mctx.moveTo(a.x,a.y); mctx.lineTo(b.x,b.y); mctx.stroke();
   mctx.beginPath(); mctx.arc(b.x,b.y,rad,0,Math.PI*2); mctx.fill(); mctx.restore();
@@ -89,35 +82,54 @@ mask.addEventListener("pointerup",()=>{drawing=false;}); mask.addEventListener("
 $("undoBtn").onclick=()=>{if(!history.length) return; mctx.putImageData(history.pop(),0,0); if(!history.length) $("undoBtn").disabled=true; resultCanvas=null; $("downloadBtn").hidden=true; pctx.putImageData(original,0,0);};
 $("clearBtn").onclick=clearMarks;
 
-function waitForCV(){
-  return new Promise((resolve,reject)=>{
-    let c=0; const t=setInterval(()=>{
-      c++; if(cvLoaded && window.cv && cv.Mat){clearInterval(t); resolve();}
-      if(c>150){clearInterval(t); reject(new Error("Engine load nahi hua. Page ko reload karo, 4G pe try karo."));}
-    },200);
-  });
+// PURE JS INPAINT - NO OPENCV NEEDED
+function jsInpaint(){
+  const w=photo.width, h=photo.height;
+  const img=pctx.getImageData(0,0,w,h);
+  const maskData=mctx.getImageData(0,0,w,h);
+  const mask=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++){ if(maskData.data[i*4+3]>20) mask[i]=1; }
+
+  // dilate mask a little
+  const dilated=new Uint8Array(mask);
+  for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
+    const idx=y*w+x; if(mask[idx]){ for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++) dilated[(y+dy)*w+(x+dx)]=1; }
+  }
+
+  const data=img.data;
+  // iterative fill
+  for(let iter=0;iter<25;iter++){
+    let changed=false;
+    for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
+      const idx=y*w+x; if(!dilated[idx]) continue;
+      let r=0,g=0,b=0,c=0;
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+        if(dx==0&&dy==0) continue;
+        const n=(y+dy)*w+(x+dx);
+        if(!dilated[n]){ const p=n*4; r+=data[p]; g+=data[p+1]; b+=data[p+2]; c++; }
+      }
+      if(c>0){ const p=idx*4; data[p]=r/c; data[p+1]=g/c; data[p+2]=b/c; dilated[idx]=0; changed=true; }
+    }
+    if(!changed) break;
+  }
+  pctx.putImageData(img,0,0);
+  resultCanvas=document.createElement("canvas"); resultCanvas.width=w; resultCanvas.height=h;
+  resultCanvas.getContext("2d").putImageData(img,0,0);
 }
+
 $("removeBtn").onclick=async()=>{
   if(!original) return; if(!history.length){setStatus("Pehle pink se mark karo."); return;}
-  setBusy(true,"Engine load ho raha hai..."); $("removeBtn").disabled=true;
+  setBusy(true,"Cleaning - thoda wait karo..."); $("removeBtn").disabled=true;
+  await new Promise(r=>setTimeout(r,50));
   try{
-    await waitForCV();
-    setBusy(true,"Cleaning..."); await new Promise(r=>setTimeout(r,20));
-    const src=cv.imread(photo); const raw=cv.imread(mask);
-    const gray=new cv.Mat(), binary=new cv.Mat(), dst=new cv.Mat();
-    cv.cvtColor(raw,gray,cv.COLOR_RGBA2GRAY); cv.threshold(gray,binary,10,255,cv.THRESH_BINARY);
-    const kernel=cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(5,5));
-    cv.dilate(binary,binary,kernel); cv.inpaint(src,binary,dst,3,cv.INPAINT_TELEA);
-    resultCanvas=document.createElement("canvas"); resultCanvas.width=photo.width; resultCanvas.height=photo.height;
-    cv.imshow(resultCanvas,dst); pctx.drawImage(resultCanvas,0,0);
-    src.delete(); raw.delete(); gray.delete(); binary.delete(); dst.delete(); kernel.delete();
-    $("downloadBtn").hidden=false; setStatus("Ho gaya! Download dabao.");
-  }catch(err){console.error(err); setStatus(err.message||"Failed. Reload karo.");}
+    jsInpaint();
+    $("downloadBtn").hidden=false; setStatus("Ho gaya! Download karo. Agar thoda blur lage to 2 baar Remove dabao.");
+  }catch(e){console.error(e); setStatus("Error: "+e.message);}
   finally{setBusy(false); $("removeBtn").disabled=false;}
 };
 $("downloadBtn").onclick=()=>{
   if(!resultCanvas) return;
-  resultCanvas.toBlob(b=>{const u=URL.createObjectURL(b); const a=document.createElement("a"); a.href=u; a.download="erased.png"; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1500);},"image/png");
+  resultCanvas.toBlob(b=>{const u=URL.createObjectURL(b); const a=document.createElement("a"); a.href=u; a.download="erased.png"; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1500);},"image/png",0.92);
 };
 </script>
 </body>
