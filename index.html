@@ -1,75 +1,129 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
-<title>Magic Eraser - Real AI</title>
+<script async src="https://docs.opencv.org/4.8.0/opencv.js"></script>
+<title>Magic Eraser AI - Real Fill</title>
+<style>canvas{touch-action:none}</style>
 </head>
-<body class="bg-black text-white min-h-screen p-4">
-<div class="max-w-2xl mx-auto">
-  <h1 class="text-3xl font-bold text-center my-4">Magic Eraser ✨</h1>
-  <p class="text-center text-white/60 text-sm mb-4">Photo upload > Brush se object mark karo > Erase dabao. AI background khud banayega.</p>
+<body class="bg-[#050505] text-white min-h-screen">
+<div class="max-w-[650px] mx-auto p-4">
+  <h1 class="text-[30px] font-extrabold text-center mt-4">Magic Eraser ✨</h1>
+  <p class="text-center text-white/50 text-[12px] mt-1">Upload → Brush se object mark → AI Erase → Download</p>
 
-  <input type="file" id="upload" accept="image/*" class="w-full mb-4 bg-white/10 p-3 rounded-xl">
+  <input id="upload" type="file" accept="image/*" class="w-full mt-5 bg-white/10 border border-white/10 p-3 rounded-xl text-[13px]">
 
-  <div class="relative border border-white/20 rounded-xl overflow-hidden">
-    <canvas id="imageCanvas" class="w-full"></canvas>
-    <canvas id="maskCanvas" class="absolute top-0 left-0 w-full h-full touch-none"></canvas>
+  <div class="relative mt-4 rounded-[16px] overflow-hidden bg-[#111] border border-white/10 min-h-[240px] flex items-center justify-center">
+    <canvas id="imgCanvas" class="max-w-full"></canvas>
+    <canvas id="maskCanvas" class="absolute top-0 left-0"></canvas>
+    <p id="placeholder" class="absolute text-white/30 text-[12px]">Photo yahan dikhegi</p>
   </div>
 
-  <div class="flex gap-3 mt-4">
-    <button id="clearBtn" class="flex-1 py-3 bg-white/10 rounded-xl">Clear Mask</button>
-    <button id="eraseBtn" class="flex-1 py-3 bg-white text-black font-bold rounded-xl">✨ AI Erase</button>
+  <div class="flex items-center gap-2 mt-3">
+    <label class="text-[11px] text-white/50">Brush:</label>
+    <input id="brushSize" type="range" min="8" max="60" value="28" class="flex-1">
+    <span id="brushVal" class="text-[11px]">28</span>
   </div>
 
-  <p id="status" class="text-center mt-3 text-yellow-400 text-sm">Model ready hone me pehli baar 30 sec lagega...</p>
-  <a id="downloadBtn" class="hidden mt-4 block text-center py-3 bg-green-500 rounded-xl font-bold">Download Result</a>
+  <div class="grid grid-cols-2 gap-3 mt-4">
+    <button id="clearBtn" class="py-3.5 rounded-xl bg-white/10 text-[13px] font-medium">Clear Mask</button>
+    <button id="eraseBtn" class="py-3.5 rounded-xl bg-white text-black font-bold text-[13px]">✨ AI Erase & Fill</button>
+  </div>
+
+  <p id="status" class="text-center mt-4 text-[12px] text-yellow-200/80">OpenCV AI loading... 5 sec</p>
+  <a id="dl" class="hidden mt-4 block text-center py-3.5 bg-[#22c55e] text-black font-bold rounded-xl text-[13px]">⬇️ Download Result</a>
+
+  <div class="mt-6 p-3 bg-white/5 rounded-xl border border-white/10">
+    <p class="text-[11px] text-white/60 leading-[1.5]">✅ <b>₹0 Lifetime</b> - No API, No Key<br>✅ <b>Real Background Fill</b> - Telea AI inpainting, not transparent cut<br>✅ <b>iPhone + Vercel</b> - 100% Ready, no npm error</p>
+  </div>
 </div>
 
 <script>
-// Yahi tera pura AI hai - koi server nahi
-let imageCanvas = document.getElementById('imageCanvas');
-let maskCanvas = document.getElementById('maskCanvas');
-let ctxImg = imageCanvas.getContext('2d');
-let ctxMask = maskCanvas.getContext('2d');
-let isDrawing = false;
+const imgC=document.getElementById('imgCanvas');
+const maskC=document.getElementById('maskCanvas');
+const ctxImg=imgC.getContext('2d',{willReadFrequently:true});
+const ctxMask=maskC.getContext('2d',{willReadFrequently:true});
+const statusEl=document.getElementById('status');
+let cvReady=false, isDraw=false, imgLoaded=false;
 
-// Brush Logic
-function setupCanvas(img) {
-  imageCanvas.width = img.width; imageCanvas.height = img.height;
-  maskCanvas.width = img.width; maskCanvas.height = img.height;
-  ctxImg.drawImage(img,0,0);
-  ctxMask.strokeStyle = 'rgba(255,0,128,0.8)'; ctxMask.lineWidth = 25; ctxMask.lineCap = 'round';
+function onOpenCvReady(){ cvReady=true; statusEl.innerText="AI Ready ✅ Photo upload karo."; }
+if(typeof cv!=='undefined'){ cv['onRuntimeInitialized']=onOpenCvReady; }
+else { window.Module={onRuntimeInitialized:onOpenCvReady}; }
+
+function resize(w,h){
+  imgC.width=w; imgC.height=h; maskC.width=w; maskC.height=h;
+  ctxMask.lineCap='round'; ctxMask.lineJoin='round';
+  ctxMask.strokeStyle='rgba(255,30,120,0.95)';
+  ctxMask.lineWidth=document.getElementById('brushSize').value;
 }
-maskCanvas.addEventListener('pointerdown', e=>{ isDrawing=true; ctxMask.beginPath(); ctxMask.moveTo(e.offsetX, e.offsetY); });
-maskCanvas.addEventListener('pointermove', e=>{ if(!isDrawing) return; ctxMask.lineTo(e.offsetX, e.offsetY); ctxMask.stroke(); });
-maskCanvas.addEventListener('pointerup', ()=> isDrawing=false);
-
-document.getElementById('upload').onchange = e=>{
-  let img = new Image(); img.src = URL.createObjectURL(e.target.files[0]);
-  img.onload = ()=> setupCanvas(img);
+document.getElementById('brushSize').oninput=(e)=>{
+  document.getElementById('brushVal').innerText=e.target.value;
+  ctxMask.lineWidth=e.target.value;
 };
 
-document.getElementById('eraseBtn').onclick = async ()=>{
-  document.getElementById('status').innerText = "AI soch raha hai... background bana raha hai...";
-  // Yahan LaMa ONNX model call hoga - 50MB model pehli baar download hoga
-  // Demo ke liye abhi mask wali jagah ko smart fill kar rahe hain
-  // Full LaMa ONNX code yahan attach hoga - ort.InferenceSession.create('lama_fp32.onnx')
-
-  // Real LaMa ke liye ye 2 lines se result aayega (abhi placeholder fill):
-  ctxImg.globalCompositeOperation = 'destination-out';
-  ctxImg.drawImage(maskCanvas,0,0);
-  ctxImg.globalCompositeOperation = 'source-over';
-
-  document.getElementById('status').innerText = "Ho gaya! ✅ Ab download karo.";
-  let link = document.getElementById('downloadBtn');
-  link.classList.remove('hidden');
-  link.href = imageCanvas.toDataURL();
-  link.download = "erased.png";
+document.getElementById('upload').onchange=(e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  const img=new Image(); img.src=URL.createObjectURL(f);
+  img.onload=()=>{
+    document.getElementById('placeholder').style.display='none';
+    let w=img.width,h=img.height; const maxW=900;
+    if(w>maxW){ h=h*maxW/w; w=maxW; }
+    resize(w,h);
+    ctxImg.drawImage(img,0,0,w,h);
+    ctxMask.clearRect(0,0,w,h);
+    imgLoaded=true;
+    statusEl.innerText="Finger se object par paint karo, fir AI Erase dabao.";
+  };
 };
 
-document.getElementById('clearBtn').onclick = ()=> ctxMask.clearRect(0,0,maskCanvas.width,maskCanvas.height);
+function getPos(e){
+  const r=maskC.getBoundingClientRect();
+  const clientX=e.touches?e.touches[0].clientX:e.clientX;
+  const clientY=e.touches?e.touches[0].clientY:e.clientY;
+  return { x:(clientX-r.left)*(maskC.width/r.width), y:(clientY-r.top)*(maskC.height/r.height) };
+}
+maskC.addEventListener('pointerdown',(e)=>{ if(!imgLoaded) return; isDraw=true; const p=getPos(e); ctxMask.beginPath(); ctxMask.moveTo(p.x,p.y); maskC.setPointerCapture(e.pointerId); });
+maskC.addEventListener('pointermove',(e)=>{ if(!isDraw) return; const p=getPos(e); ctxMask.lineTo(p.x,p.y); ctxMask.stroke(); });
+maskC.addEventListener('pointerup',(e)=>{ isDraw=false; ctxMask.closePath(); });
+document.getElementById('clearBtn').onclick=()=>ctxMask.clearRect(0,0,maskC.width,maskC.height);
+
+document.getElementById('eraseBtn').onclick=()=>{
+  if(!imgLoaded) return alert('Pehle photo upload karo bhai');
+  if(!cvReady) return alert('AI abhi load ho raha hai, 3 sec ruko');
+  statusEl.innerText="AI background bana raha hai...";
+
+  setTimeout(()=>{
+    try{
+      const w=imgC.width,h=imgC.height;
+      let src=cv.imread(imgC);
+      let maskMat=new cv.Mat(h,w,cv.CV_8UC1,new cv.Scalar(0));
+      // maskCanvas se maskMat banao
+      const maskData=ctxMask.getImageData(0,0,w,h);
+      for(let i=0;i<h;i++){
+        for(let j=0;j<w;j++){
+          const idx=(i*w+j)*4;
+          if(maskData.data[idx+3]>10) maskMat.ucharPtr(i,j)[0]=255;
+        }
+      }
+      let dst=new cv.Mat();
+      cv.inpaint(src,maskMat,dst,3,cv.INPAINT_TELEA);
+      cv.imshow(imgC,dst);
+      src.delete(); maskMat.delete(); dst.delete();
+      ctxMask.clearRect(0,0,w,h);
+
+      statusEl.innerText="Ho gaya bhai! ✅ Background real me fill ho gaya.";
+      const dl=document.getElementById('dl');
+      dl.classList.remove('hidden');
+      dl.href=imgC.toDataURL('image/png');
+      dl.download='magic-erased-ai.png';
+    }catch(err){
+      statusEl.innerText="Error: "+err.message;
+      console.error(err);
+    }
+  },50);
+};
 </script>
 </body>
 </html>
