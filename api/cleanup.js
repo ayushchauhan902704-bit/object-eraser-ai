@@ -1,39 +1,37 @@
-export const config = {
-  api: { bodyParser: false },
-};
+export const config = { api: { bodyParser: true } };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).send('Method not allowed');
-  }
+  if (req.method !== 'POST') return res.status(405).json({error:'no'});
 
   try {
-    const chunks = [];
-    for await (const chunk of req) {
-      chunks.push(chunk);
-    }
-    const body = Buffer.concat(chunks);
+    const { image, mask } = req.body; // base64
 
-    const contentType = req.headers['content-type'];
+    if (!image) return res.status(400).json({error:'image missing'});
 
-    const clipdropRes = await fetch('https://clipdrop-api.co/cleanup/v1', {
+    // HuggingFace Inpainting Model - FREE
+    const hfRes = await fetch('https://api-inference.huggingface.co/models/runwayml/stable-diffusion-inpainting', {
       method: 'POST',
       headers: {
-        'x-api-key': process.env.CLIPDROP_KEY,
-        'Content-Type': contentType,
+        'Authorization': `Bearer ${process.env.HF_KEY}`,
+        'Content-Type': 'application/json'
       },
-      body: body,
+      body: JSON.stringify({
+        inputs: `remove object, clean background, seamless`,
+        image: image,
+        mask_image: mask
+      })
     });
 
-    if (!clipdropRes.ok) {
-      const text = await clipdropRes.text();
-      return res.status(500).send(text);
+    if (!hfRes.ok) {
+      const errText = await hfRes.text();
+      return res.status(500).json({error: errText});
     }
 
-    const buffer = Buffer.from(await clipdropRes.arrayBuffer());
+    const buffer = Buffer.from(await hfRes.arrayBuffer());
     res.setHeader('Content-Type', 'image/png');
-    res.send(buffer);
+    return res.send(buffer);
+
   } catch (e) {
-    res.status(500).send(e.message);
+    return res.status(500).json({error: e.message});
   }
 }
