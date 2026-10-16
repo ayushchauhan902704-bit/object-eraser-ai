@@ -1,148 +1,77 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Magic Eraser - Real AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magic Eraser AI</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
-body{background:#0a0a0a;color:#fff}
-.box{max-width:750px;margin:auto;padding:14px}
-h1{text-align:center;padding:16px;font-size:24px}
-h1 span{background:linear-gradient(90deg,#a78bfa,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.card{background:#171717;border:1px solid #2a2a2a;border-radius:18px;padding:16px}
-.up{border:2px dashed #444;border-radius:14px;padding:36px;text-align:center;background:#111}
-.btn{width:100%;padding:14px;border-radius:12px;border:0;font-weight:800;font-size:16px;cursor:pointer;margin-top:12px}
-.b1{background:#fff;color:#000}
-.b2{background:linear-gradient(90deg,#8b5cf6,#ec4899);color:#fff}
-.b3{background:#22c55e;color:#000}
-#wrap{position:relative;display:none;margin-top:14px;background:#000;border-radius:14px;overflow:hidden}
-canvas{display:block;width:100%}
-#draw{position:absolute;top:0;left:0;touch-action:none}
-.tools{display:none;justify-content:space-between;align-items:center;margin-top:10px}
-#res{display:none;margin-top:16px}
-#res img{width:100%;border-radius:12px;margin-top:8px}
-.small{padding:8px 14px;border-radius:8px;background:#2a2a2a;color:#fff;border:1px solid #333;font-size:13px}
+body{background:#111;color:#fff;text-align:center;font-family:sans-serif;margin:0;padding:20px}
+canvas{touch-action:none}
+#wrap{position:relative;display:inline-block;max-width:95vw}
+#wrap img{max-width:100%;display:block}
+#wrap canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+button{padding:12px 22px;margin:8px;border:none;border-radius:8px;font-weight:bold}
+.purple{background:#a855f7;color:#fff}
 </style>
 </head>
 <body>
-<div class="box">
-<h1><span>Magic Eraser</span> - AI</h1>
-<div class="card">
-<div class="up" id="up">
-<p>📸 Photo Upload Karo</p>
-<label class="btn b1" for="f" style="display:inline-block;margin-top:12px;width:auto;padding:12px 22px">Upload Photo</label>
-<input type="file" id="f" accept="image/*" hidden>
-</div>
-
-<div id="wrap">
-<canvas id="main"></canvas>
-<canvas id="draw"></canvas>
-</div>
-
-<div class="tools" id="tools">
+<h1>Magic Eraser - AI Background</h1>
+<input type="file" id="file" accept="image/*">
+<div id="wrap" style="display:none"><img id="img"><canvas id="canvas"></canvas></div>
 <div>
-<button class="small" onclick="clearM()">Clear</button>
-<span style="font-size:12px;color:#aaa;margin-left:6px">🔴 Red se ghanta mark karo</span>
+<button onclick="clearMask()">Clear Brush</button>
+<button class="purple" id="eraseBtn" onclick="erase()">Erase with AI</button>
 </div>
-<input type="range" id="bs" min="10" max="70" value="30">
-</div>
-
-<button class="btn b2" id="go" style="display:none" onclick="send()">✨ REMOVE OBJECT - AI</button>
-
-<div id="res">
-<p style="color:#22c55e;font-size:14px">✅ Object Removed - No Blur</p>
-<img id="out">
-<a id="dl" class="btn b3" style="display:block;text-align:center;text-decoration:none" download="erased.png">⬇️ Download HD</a>
-<button class="btn small" style="width:100%;margin-top:8px" onclick="location.reload()">🔄 New Photo</button>
-</div>
-
-<p id="st" style="text-align:center;color:#a78bfa;font-size:12px;margin-top:10px"></p>
-</div>
-</div>
-
+<div id="resultWrap" style="display:none"><h2>Result - AI ne background banaya!</h2><img id="resultImg" style="max-width:95vw"><br><button onclick="location.reload()">New Image</button></div>
 <script>
-let main=document.getElementById('main'), draw=document.getElementById('draw');
-let m=main.getContext('2d'), d=draw.getContext('2d');
-let isD=false;
+let isDrawing=false;
+const imgEl=document.getElementById('img');
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const fileInput=document.getElementById('file');
 
-document.getElementById('f').onchange=e=>{
- const file=e.target.files[0]; if(!file) return;
- const img=new Image();
- img.onload=()=>{
-  const MAX=1000;
-  let w=img.width,h=img.height;
-  if(w>MAX){h=h*MAX/w; w=MAX}
-  main.width=w; main.height=h; draw.width=w; draw.height=h;
-  m.drawImage(img,0,0,w,h);
-  document.getElementById('wrap').style.display='block';
-  document.getElementById('tools').style.display='flex';
-  document.getElementById('go').style.display='block';
-  document.getElementById('up').style.display='none';
-  document.getElementById('st').innerText='Red se object mark karo';
- };
- img.src=URL.createObjectURL(file);
+fileInput.onchange=e=>{
+  const f=e.target.files[0];
+  const r=new FileReader();
+  r.onload=()=>{imgEl.src=r.result; document.getElementById('wrap').style.display='inline-block'; setTimeout(initCanvas,100)};
+  r.readAsDataURL(f);
 };
-
-function pos(e){
- const r=draw.getBoundingClientRect();
- const t=e.touches?e.touches[0]:e;
- return {x:(t.clientX-r.left)*draw.width/r.width, y:(t.clientY-r.top)*draw.height/r.height}
+function initCanvas(){
+  canvas.width=imgEl.clientWidth; canvas.height=imgEl.clientHeight;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 }
-draw.addEventListener('pointerdown',e=>{isD=true; d.beginPath(); const p=pos(e); d.moveTo(p.x,p.y)});
-draw.addEventListener('pointermove',e=>{
- if(!isD) return;
- const p=pos(e);
- d.lineWidth=document.getElementById('bs').value;
- d.lineCap='round'; d.strokeStyle='rgba(255,0,60,0.85)'; d.lineTo(p.x,p.y); d.stroke();
-});
-window.addEventListener('pointerup',()=>isD=false);
-
-function clearM(){d.clearRect(0,0,draw.width,draw.height)}
-
-async function send(){
- const btn=document.getElementById('go');
- btn.innerText='AI hata raha hai... 5 sec';
- document.getElementById('st').innerText='AI background bana raha hai, blur nahi aayega...';
-
- // mask banao
- let maskCanvas=document.createElement('canvas');
- maskCanvas.width=main.width; maskCanvas.height=main.height;
- let mctx=maskCanvas.getContext('2d');
- mctx.fillStyle='black'; mctx.fillRect(0,0,maskCanvas.width,maskCanvas.height);
- mctx.drawImage(draw,0,0);
- // white mask for clipdrop
- let temp=mctx.getImageData(0,0,maskCanvas.width,maskCanvas.height);
- for(let i=0;i<temp.data.length;i+=4){
-  if(temp.data[i]>50){temp.data[i]=255;temp.data[i+1]=255;temp.data[i+2]=255}
-  else{temp.data[i]=0;temp.data[i+1]=0;temp.data[i+2]=0}
-  temp.data[i+3]=255;
- }
- mctx.putImageData(temp,0,0);
-
- const imgBlob = await new Promise(r=>main.toBlob(r,'image/png'));
- const maskBlob = await new Promise(r=>maskCanvas.toBlob(r,'image/png'));
-
- let fd=new FormData();
- fd.append('image_file', imgBlob, 'image.png');
- fd.append('mask_file', maskBlob, 'mask.png');
-
- try{
-  const res=await fetch('/api/cleanup',{method:'POST',body:fd});
-  if(!res.ok) throw new Error('API error');
-  const blob=await res.blob();
-  const url=URL.createObjectURL(blob);
-  document.getElementById('out').src=url;
-  document.getElementById('dl').href=url;
-  document.getElementById('res').style.display='block';
-  document.getElementById('st').innerText='Ho gaya!';
-  btn.innerText='✨ REMOVE OBJECT - AI';
-  document.getElementById('res').scrollIntoView({behavior:'smooth'});
- }catch(err){
-  document.getElementById('st').innerText='Error: Vercel me API file nahi lagi. Dusra code daalo.';
-  btn.innerText='✨ REMOVE OBJECT - AI';
-  alert('Backend wala cleanup.js file abhi nahi daala hai. Woh daalne ke baad hi chalega.');
- }
+function getPos(e){
+  const rect=canvas.getBoundingClientRect();
+  const x=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+  const y=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+  return {x: x*(canvas.width/rect.width), y: y*(canvas.height/rect.height)};
+}
+canvas.addEventListener('mousedown',e=>{isDrawing=true; draw(e)});
+canvas.addEventListener('mousemove',draw);
+canvas.addEventListener('mouseup',()=>isDrawing=false);
+canvas.addEventListener('touchstart',e=>{isDrawing=true; draw(e)});
+canvas.addEventListener('touchmove',e=>{draw(e); e.preventDefault()},{passive:false});
+canvas.addEventListener('touchend',()=>isDrawing=false);
+function draw(e){
+  if(!isDrawing) return;
+  const p=getPos(e);
+  ctx.fillStyle='red'; ctx.beginPath(); ctx.arc(p.x,p.y,22,0,Math.PI*2); ctx.fill();
+}
+function clearMask(){ctx.clearRect(0,0,canvas.width,canvas.height)}
+async function erase(){
+  const btn=document.getElementById('eraseBtn');
+  btn.textContent='AI hata raha hai... 5 sec'; btn.disabled=true;
+  try{
+    const mask=canvas.toDataURL('image/png');
+    const res=await fetch('/api/cleanup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:imgEl.src, mask})});
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||'Backend error');
+    document.getElementById('resultImg').src=data.result;
+    document.getElementById('resultWrap').style.display='block';
+    document.getElementById('wrap').style.display='none';
+  }catch(err){
+    alert('Error: '+err.message);
+  }
+  btn.textContent='Erase with AI'; btn.disabled=false;
 }
 </script>
 </body>
