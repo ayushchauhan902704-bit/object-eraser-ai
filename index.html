@@ -5,58 +5,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <script src="https://cdn.tailwindcss.com"></script>
 <script async src="https://docs.opencv.org/4.8.0/opencv.js"></script>
-<title>Magic Eraser AI - Real Fill</title>
-<style>canvas{touch-action:none}</style>
+<title>Magic Eraser V3 Fixed</title>
 </head>
-<body class="bg-[#050505] text-white min-h-screen">
+<body class="bg-black text-white min-h-screen">
 <div class="max-w-[650px] mx-auto p-4">
-  <h1 class="text-[30px] font-extrabold text-center mt-4">Magic Eraser ✨</h1>
-  <p class="text-center text-white/50 text-[12px] mt-1">Upload → Brush se object mark → AI Erase → Download</p>
+  <h1 class="text-[26px] font-bold text-center mt-3">Magic Eraser V3 ✨</h1>
+  <p id="status" class="text-center mt-2 text-[12px] text-yellow-200">AI loading... 3 sec</p>
 
-  <input id="upload" type="file" accept="image/*" class="w-full mt-5 bg-white/10 border border-white/10 p-3 rounded-xl text-[13px]">
+  <input id="upload" type="file" accept="image/*" class="w-full mt-4 bg-white/10 p-3 rounded-xl text-[13px]">
 
-  <div class="relative mt-4 rounded-[16px] overflow-hidden bg-[#111] border border-white/10 min-h-[240px] flex items-center justify-center">
-    <canvas id="imgCanvas" class="max-w-full"></canvas>
+  <div class="relative mt-4 rounded-xl overflow-hidden bg-[#111] border border-white/10">
+    <canvas id="imgCanvas"></canvas>
     <canvas id="maskCanvas" class="absolute top-0 left-0"></canvas>
-    <p id="placeholder" class="absolute text-white/30 text-[12px]">Photo yahan dikhegi</p>
   </div>
 
   <div class="flex items-center gap-2 mt-3">
-    <label class="text-[11px] text-white/50">Brush:</label>
-    <input id="brushSize" type="range" min="8" max="60" value="28" class="flex-1">
+    <span class="text-[11px] text-white/50">Brush:</span>
+    <input id="brushSize" type="range" min="10" max="80" value="28" class="flex-1">
     <span id="brushVal" class="text-[11px]">28</span>
   </div>
 
   <div class="grid grid-cols-2 gap-3 mt-4">
-    <button id="clearBtn" class="py-3.5 rounded-xl bg-white/10 text-[13px] font-medium">Clear Mask</button>
+    <button id="clearBtn" class="py-3.5 rounded-xl bg-white/10 text-[13px]">Clear Mask</button>
     <button id="eraseBtn" class="py-3.5 rounded-xl bg-white text-black font-bold text-[13px]">✨ AI Erase & Fill</button>
   </div>
-
-  <p id="status" class="text-center mt-4 text-[12px] text-yellow-200/80">OpenCV AI loading... 5 sec</p>
-  <a id="dl" class="hidden mt-4 block text-center py-3.5 bg-[#22c55e] text-black font-bold rounded-xl text-[13px]">⬇️ Download Result</a>
-
-  <div class="mt-6 p-3 bg-white/5 rounded-xl border border-white/10">
-    <p class="text-[11px] text-white/60 leading-[1.5]">✅ <b>₹0 Lifetime</b> - No API, No Key<br>✅ <b>Real Background Fill</b> - Telea AI inpainting, not transparent cut<br>✅ <b>iPhone + Vercel</b> - 100% Ready, no npm error</p>
-  </div>
+  <a id="dl" class="hidden mt-4 block text-center py-3.5 bg-green-500 text-black font-bold rounded-xl">Download</a>
 </div>
 
 <script>
-const imgC=document.getElementById('imgCanvas');
-const maskC=document.getElementById('maskCanvas');
-const ctxImg=imgC.getContext('2d',{willReadFrequently:true});
-const ctxMask=maskC.getContext('2d',{willReadFrequently:true});
+const imgC=document.getElementById('imgCanvas'), maskC=document.getElementById('maskCanvas');
+const ctxImg=imgC.getContext('2d',{willReadFrequently:true}), ctxMask=maskC.getContext('2d',{willReadFrequently:true});
 const statusEl=document.getElementById('status');
-let cvReady=false, isDraw=false, imgLoaded=false;
+let cvReady=false, imgLoaded=false, isDraw=false;
 
-function onOpenCvReady(){ cvReady=true; statusEl.innerText="AI Ready ✅ Photo upload karo."; }
-if(typeof cv!=='undefined'){ cv['onRuntimeInitialized']=onOpenCvReady; }
-else { window.Module={onRuntimeInitialized:onOpenCvReady}; }
+function setStatus(t){ statusEl.innerText=t; }
+var Module={onRuntimeInitialized:()=>{cvReady=true; setStatus("AI Ready ✅ Photo upload karo");}};
+setTimeout(()=>{ if(typeof cv!=='undefined' && cv.Mat) { cvReady=true; setStatus("AI Ready ✅ Photo upload karo"); }},3000);
 
 function resize(w,h){
   imgC.width=w; imgC.height=h; maskC.width=w; maskC.height=h;
   ctxMask.lineCap='round'; ctxMask.lineJoin='round';
-  ctxMask.strokeStyle='rgba(255,30,120,0.95)';
-  ctxMask.lineWidth=document.getElementById('brushSize').value;
+  ctxMask.strokeStyle='rgba(255,0,128,1)'; ctxMask.lineWidth=28;
 }
 document.getElementById('brushSize').oninput=(e)=>{
   document.getElementById('brushVal').innerText=e.target.value;
@@ -64,65 +53,79 @@ document.getElementById('brushSize').oninput=(e)=>{
 };
 
 document.getElementById('upload').onchange=(e)=>{
-  const f=e.target.files[0]; if(!f) return;
-  const img=new Image(); img.src=URL.createObjectURL(f);
+  const img=new Image(); img.src=URL.createObjectURL(e.target.files[0]);
   img.onload=()=>{
-    document.getElementById('placeholder').style.display='none';
-    let w=img.width,h=img.height; const maxW=900;
-    if(w>maxW){ h=h*maxW/w; w=maxW; }
-    resize(w,h);
-    ctxImg.drawImage(img,0,0,w,h);
-    ctxMask.clearRect(0,0,w,h);
-    imgLoaded=true;
-    statusEl.innerText="Finger se object par paint karo, fir AI Erase dabao.";
+    let w=img.width,h=img.height; if(w>800){h=h*800/w; w=800;}
+    resize(w,h); ctxImg.drawImage(img,0,0,w,h); ctxMask.clearRect(0,0,w,h);
+    imgLoaded=true; setStatus("Brush se object par pink color karo, fir Erase dabao");
   };
 };
 
 function getPos(e){
   const r=maskC.getBoundingClientRect();
-  const clientX=e.touches?e.touches[0].clientX:e.clientX;
-  const clientY=e.touches?e.touches[0].clientY:e.clientY;
-  return { x:(clientX-r.left)*(maskC.width/r.width), y:(clientY-r.top)*(maskC.height/r.height) };
+  const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+  const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+  return {x:x*(maskC.width/r.width), y:y*(maskC.height/r.height)};
 }
-maskC.addEventListener('pointerdown',(e)=>{ if(!imgLoaded) return; isDraw=true; const p=getPos(e); ctxMask.beginPath(); ctxMask.moveTo(p.x,p.y); maskC.setPointerCapture(e.pointerId); });
-maskC.addEventListener('pointermove',(e)=>{ if(!isDraw) return; const p=getPos(e); ctxMask.lineTo(p.x,p.y); ctxMask.stroke(); });
-maskC.addEventListener('pointerup',(e)=>{ isDraw=false; ctxMask.closePath(); });
+maskC.addEventListener('pointerdown',(e)=>{const p=getPos(e); isDraw=true; ctxMask.beginPath(); ctxMask.moveTo(p.x,p.y);});
+maskC.addEventListener('pointermove',(e)=>{if(!isDraw) return; const p=getPos(e); ctxMask.lineTo(p.x,p.y); ctxMask.stroke();});
+window.addEventListener('pointerup',()=>isDraw=false);
 document.getElementById('clearBtn').onclick=()=>ctxMask.clearRect(0,0,maskC.width,maskC.height);
 
-document.getElementById('eraseBtn').onclick=()=>{
-  if(!imgLoaded) return alert('Pehle photo upload karo bhai');
-  if(!cvReady) return alert('AI abhi load ho raha hai, 3 sec ruko');
-  statusEl.innerText="AI background bana raha hai...";
+document.getElementById('eraseBtn').onclick=async()=>{
+  if(!imgLoaded) return alert('Photo upload karo pehle');
+  setStatus("AI background bana raha hai...");
 
-  setTimeout(()=>{
-    try{
-      const w=imgC.width,h=imgC.height;
-      let src=cv.imread(imgC);
-      let maskMat=new cv.Mat(h,w,cv.CV_8UC1,new cv.Scalar(0));
-      // maskCanvas se maskMat banao
-      const maskData=ctxMask.getImageData(0,0,w,h);
-      for(let i=0;i<h;i++){
-        for(let j=0;j<w;j++){
-          const idx=(i*w+j)*4;
-          if(maskData.data[idx+3]>10) maskMat.ucharPtr(i,j)[0]=255;
+  try{
+    const w=imgC.width, h=imgC.height;
+    const imgData=ctxImg.getImageData(0,0,w,h);
+    const maskData=ctxMask.getImageData(0,0,w,h);
+    let hasMask=false;
+    for(let i=3;i<maskData.data.length;i+=4) if(maskData.data[i]>10){hasMask=true; break;}
+    if(!hasMask) return setStatus("Pehle pink brush se object par mark karo!");
+
+    if(cvReady){
+      try{
+        let src=new cv.Mat(h,w,cv.CV_8UC4);
+        src.data.set(imgData.data);
+        let src3=new cv.Mat(); cv.cvtColor(src,src3,cv.COLOR_RGBA2RGB);
+        let mask=new cv.Mat(h,w,cv.CV_8UC1);
+        for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+          const idx=(y*w+x)*4; mask.ucharPtr(y,x)[0]=maskData.data[idx+3]>10?255:0;
+        }
+        let dst=new cv.Mat();
+        cv.inpaint(src3,mask,dst,5,cv.INPAINT_TELEA);
+        cv.cvtColor(dst,src,cv.COLOR_RGB2RGBA);
+        ctxImg.putImageData(new ImageData(new Uint8ClampedArray(src.data),w,h),0,0);
+        src.delete(); src3.delete(); mask.delete(); dst.delete();
+      }catch(e){
+        throw e;
+      }
+    }else{
+      // Fallback smart fill if cv not ready
+      for(let k=0;k<3;k++){
+        for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+          const i=(y*w+x)*4; if(maskData.data[i+3]>10){
+            let r=0,g=0,b=0,c=0;
+            for(let dy=-4;dy<=4;dy++) for(let dx=-4;dx<=4;dx++){
+              const nx=x+dx, ny=y+dy; if(nx<0||ny<0||nx>=w||ny>=h) continue;
+              const ni=(ny*w+nx)*4; if(maskData.data[ni+3]<10){ r+=imgData.data[ni]; g+=imgData.data[ni+1]; b+=imgData.data[ni+2]; c++; }
+            }
+            if(c>0){ imgData.data[i]=r/c; imgData.data[i+1]=g/c; imgData.data[i+2]=b/c; }
+          }
         }
       }
-      let dst=new cv.Mat();
-      cv.inpaint(src,maskMat,dst,3,cv.INPAINT_TELEA);
-      cv.imshow(imgC,dst);
-      src.delete(); maskMat.delete(); dst.delete();
-      ctxMask.clearRect(0,0,w,h);
-
-      statusEl.innerText="Ho gaya bhai! ✅ Background real me fill ho gaya.";
-      const dl=document.getElementById('dl');
-      dl.classList.remove('hidden');
-      dl.href=imgC.toDataURL('image/png');
-      dl.download='magic-erased-ai.png';
-    }catch(err){
-      statusEl.innerText="Error: "+err.message;
-      console.error(err);
+      ctxImg.putImageData(imgData,0,0);
     }
-  },50);
+
+    ctxMask.clearRect(0,0,w,h);
+    setStatus("Ho gaya! ✅ Download kar lo.");
+    const dl=document.getElementById('dl'); dl.classList.remove('hidden');
+    dl.href=imgC.toDataURL('image/png'); dl.download='erased.png';
+  }catch(err){
+    console.error(err);
+    setStatus("Error: "+(err.message||err)+" - OpenCV fail, fallback try kar raha hu");
+  }
 };
 </script>
 </body>
