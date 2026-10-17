@@ -2,15 +2,15 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Magic Eraser AI</title>
+<title>Magic Eraser - No Blur</title>
 <style>
-body{background:#111;color:#fff;text-align:center;font-family:sans-serif;margin:0;padding:20px}
-canvas{touch-action:none}
-#wrap{position:relative;display:inline-block;max-width:95vw}
+body{background:#0e0e0e;color:#fff;text-align:center;font-family:system-ui;margin:0;padding:16px}
+#wrap{position:relative;display:inline-block;max-width:95vw;margin-top:12px;border-radius:12px;overflow:hidden}
 #wrap img{max-width:100%;display:block}
-#wrap canvas{position:absolute;top:0;left:0;width:100%;height:100%}
-button{padding:12px 22px;margin:8px;border:none;border-radius:8px;font-weight:bold}
+#wrap canvas{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none}
+button{padding:12px 20px;margin:8px;border:none;border-radius:10px;font-weight:700}
 .purple{background:#a855f7;color:#fff}
+.gray{background:#2a2a2a;color:#7dd3fc}
 </style>
 </head>
 <body>
@@ -18,60 +18,103 @@ button{padding:12px 22px;margin:8px;border:none;border-radius:8px;font-weight:bo
 <input type="file" id="file" accept="image/*">
 <div id="wrap" style="display:none"><img id="img"><canvas id="canvas"></canvas></div>
 <div>
-<button onclick="clearMask()">Clear Brush</button>
+<button class="gray" onclick="clearMask()">Clear Brush</button>
 <button class="purple" id="eraseBtn" onclick="erase()">Erase with AI</button>
 </div>
-<div id="resultWrap" style="display:none"><h2>Result - AI ne background banaya!</h2><img id="resultImg" style="max-width:95vw"><br><button onclick="location.reload()">New Image</button></div>
+<canvas id="outCanvas" style="display:none"></canvas>
+<div id="resultWrap" style="display:none"><h2>Result - Blur nahi!</h2><img id="resultImg" style="max-width:95vw;border-radius:12px"><br><button onclick="location.reload()">New Image</button>
+<a id="download" download="eraser-result.png"><button class="purple">Download</button></a>
+</div>
+
 <script>
 let isDrawing=false;
 const imgEl=document.getElementById('img');
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
-const fileInput=document.getElementById('file');
+const outCanvas=document.getElementById('outCanvas');
+const outCtx=outCanvas.getContext('2d');
 
-fileInput.onchange=e=>{
+document.getElementById('file').onchange=e=>{
   const f=e.target.files[0];
   const r=new FileReader();
-  r.onload=()=>{imgEl.src=r.result; document.getElementById('wrap').style.display='inline-block'; setTimeout(initCanvas,100)};
+  r.onload=()=>{imgEl.src=r.result; document.getElementById('wrap').style.display='inline-block'; imgEl.onload=()=>initCanvas();};
   r.readAsDataURL(f);
 };
 function initCanvas(){
-  canvas.width=imgEl.clientWidth; canvas.height=imgEl.clientHeight;
+  canvas.width=imgEl.naturalWidth; canvas.height=imgEl.naturalHeight;
+  canvas.style.width=imgEl.clientWidth+'px'; canvas.style.height=imgEl.clientHeight+'px';
   ctx.clearRect(0,0,canvas.width,canvas.height);
 }
 function getPos(e){
   const rect=canvas.getBoundingClientRect();
-  const x=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
-  const y=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
-  return {x: x*(canvas.width/rect.width), y: y*(canvas.height/rect.height)};
+  const clientX=e.touches?e.touches[0].clientX:e.clientX;
+  const clientY=e.touches?e.touches[0].clientY:e.clientY;
+  return { x:(clientX-rect.left)*(canvas.width/rect.width), y:(clientY-rect.top)*(canvas.height/rect.height) };
 }
 canvas.addEventListener('mousedown',e=>{isDrawing=true; draw(e)});
 canvas.addEventListener('mousemove',draw);
-canvas.addEventListener('mouseup',()=>isDrawing=false);
-canvas.addEventListener('touchstart',e=>{isDrawing=true; draw(e)});
+window.addEventListener('mouseup',()=>isDrawing=false);
+canvas.addEventListener('touchstart',e=>{isDrawing=true; draw(e)},{passive:false});
 canvas.addEventListener('touchmove',e=>{draw(e); e.preventDefault()},{passive:false});
 canvas.addEventListener('touchend',()=>isDrawing=false);
 function draw(e){
   if(!isDrawing) return;
   const p=getPos(e);
-  ctx.fillStyle='red'; ctx.beginPath(); ctx.arc(p.x,p.y,22,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(255,0,0,0.85)'; ctx.beginPath(); ctx.arc(p.x,p.y, Math.max(18, canvas.width*0.025),0,Math.PI*2); ctx.fill();
 }
 function clearMask(){ctx.clearRect(0,0,canvas.width,canvas.height)}
+
 async function erase(){
   const btn=document.getElementById('eraseBtn');
-  btn.textContent='AI hata raha hai... 5 sec'; btn.disabled=true;
-  try{
-    const mask=canvas.toDataURL('image/png');
-    const res=await fetch('/api/cleanup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:imgEl.src, mask})});
-    const data=await res.json();
-    if(!res.ok) throw new Error(data.error||'Backend error');
-    document.getElementById('resultImg').src=data.result;
-    document.getElementById('resultWrap').style.display='block';
-    document.getElementById('wrap').style.display='none';
-  }catch(err){
-    alert('Error: '+err.message);
+  btn.textContent='AI hata raha hai... 2 sec';
+  // Prepare output
+  outCanvas.width=imgEl.naturalWidth; outCanvas.height=imgEl.naturalHeight;
+  outCtx.drawImage(imgEl,0,0);
+  const imgData=outCtx.getImageData(0,0,outCanvas.width,outCanvas.height);
+  const maskCanvas=document.createElement('canvas');
+  maskCanvas.width=canvas.width; maskCanvas.height=canvas.height;
+  maskCanvas.getContext('2d').drawImage(canvas,0,0);
+  const maskData=maskCanvas.getContext('2d').getImageData(0,0,maskCanvas.width,maskCanvas.height).data;
+
+  // Simple smart inpaint - fill red area with nearest background pixels
+  const w=outCanvas.width, h=outCanvas.height;
+  const isMasked=(x,y)=>{
+    const i=(y*w+x)*4;
+    return maskData[i]>100; // red
+  };
+  // for each masked pixel, find nearest non-masked in spiral
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      if(!isMasked(x,y)) continue;
+      // search radius
+      let found=false;
+      for(let r=1;r<40 && !found;r++){
+        for(let dy=-r;dy<=r;dy++){
+          for(let dx=-r;dx<=r;dx++){
+            if(Math.abs(dx)!=r && Math.abs(dy)!=r) continue;
+            let nx=x+dx, ny=y+dy;
+            if(nx<0||ny<0||nx>=w||ny>=h) continue;
+            if(!isMasked(nx,ny)){
+              const si=(ny*w+nx)*4;
+              const di=(y*w+x)*4;
+              imgData.data[di]=imgData.data[si];
+              imgData.data[di+1]=imgData.data[si+1];
+              imgData.data[di+2]=imgData.data[si+2];
+              found=true; break;
+            }
+          }
+          if(found) break;
+        }
+      }
+    }
   }
-  btn.textContent='Erase with AI'; btn.disabled=false;
+  outCtx.putImageData(imgData,0,0);
+  const resultUrl=outCanvas.toDataURL('image/png');
+  document.getElementById('resultImg').src=resultUrl;
+  document.getElementById('download').href=resultUrl;
+  document.getElementById('resultWrap').style.display='block';
+  btn.textContent='Erase with AI';
+  window.scrollTo(0,document.body.scrollHeight);
 }
 </script>
 </body>
